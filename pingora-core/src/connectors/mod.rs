@@ -332,9 +332,10 @@ async fn do_connect_inner<P: Peer + Send + Sync>(
     }
 }
 
+const PREFERRED_HTTP_VERSION_SHARDS: usize = 64;
+
 struct PreferredHttpVersion {
-    // TODO: shard to avoid the global lock
-    versions: RwLock<HashMap<u64, u8>>, // <hash of peer, version>
+    versions: [RwLock<HashMap<u64, u8>>; PREFERRED_HTTP_VERSION_SHARDS], // <hash of peer, version>
 }
 
 // TODO: limit the size of this
@@ -342,19 +343,21 @@ struct PreferredHttpVersion {
 impl PreferredHttpVersion {
     pub fn new() -> Self {
         PreferredHttpVersion {
-            versions: RwLock::default(),
+            versions: std::array::from_fn(|_| RwLock::default()),
         }
     }
 
     pub fn add(&self, peer: &impl Peer, version: u8) {
         let key = peer.reuse_hash();
-        let mut v = self.versions.write();
+        let shard = (key % PREFERRED_HTTP_VERSION_SHARDS as u64) as usize;
+        let mut v = self.versions[shard].write();
         v.insert(key, version);
     }
 
     pub fn get(&self, peer: &impl Peer) -> Option<ALPN> {
         let key = peer.reuse_hash();
-        let v = self.versions.read();
+        let shard = (key % PREFERRED_HTTP_VERSION_SHARDS as u64) as usize;
+        let v = self.versions[shard].read();
         v.get(&key)
             .copied()
             .map(|v| if v == 1 { ALPN::H1 } else { ALPN::H2H1 })
@@ -542,5 +545,26 @@ mod tests {
         let peer = BasicPeer::new(BLACK_HOLE);
         let (etype, context) = get_do_connect_failure_with_peer(&peer).await;
         assert!(etype != ConnectTimedout || !context.contains("total-connection timeout"));
+    }
+
+    #[test]
+    fn test_preferred_http_version_sharding() {
+        let preferred = PreferredHttpVersion::new();
+        // create many peers and verify they are stored correctly
+        for i in 0..1000 {
+            let mut peer = BasicPeer::new("1.1.1.1:80");
+            // BasicPeer reuse_hash depends on address hash.
+            // We can vary the address slightly or just mock it, but BasicPeer::new uses address.
+            // Let's vary the address port to ensure hash variance.
+            peer._address = format!("1.1.1.1:{}", 10000 + i).parse().unwrap();
+
+            preferred.add(&peer, 1);
+            let val = preferred.get(&peer);
+            assert!(matches!(val, Some(ALPN::H1)));
+        }
+
+        // test that a non-existing peer returns None
+        let peer = BasicPeer::new("2.2.2.2:80");
+        assert!(preferred.get(&peer).is_none());
     }
 }
