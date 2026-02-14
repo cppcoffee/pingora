@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use rand::prelude::*;
+use rand_distr::Distribution;
 use std::num::NonZeroUsize;
 use std::sync::{Barrier, Mutex};
 use std::thread;
@@ -95,8 +96,8 @@ fn main() {
     }
 
     // single thread
-    let mut rng = rand::rng();
-    let zipf = rand_distr::Zipf::new(ITEMS as f64, 1.03).unwrap();
+    let mut rng = rand::thread_rng();
+    let zipf = rand_distr::Zipf::new(ITEMS as u64, 1.03).unwrap();
 
     let before = Instant::now();
     for _ in 0..ITERATIONS {
@@ -159,8 +160,8 @@ fn main() {
     thread::scope(|s| {
         for _ in 0..THREADS {
             s.spawn(|| {
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(ITEMS as f64, 1.03).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(ITEMS as u64, 1.03).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -186,8 +187,8 @@ fn main() {
     thread::scope(|s| {
         for _ in 0..THREADS {
             s.spawn(|| {
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(ITEMS as f64, 1.03).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(ITEMS as u64, 1.03).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -213,8 +214,8 @@ fn main() {
     thread::scope(|s| {
         for _ in 0..THREADS {
             s.spawn(|| {
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(ITEMS as f64, 1.03).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(ITEMS as u64, 1.03).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -240,8 +241,8 @@ fn main() {
     thread::scope(|s| {
         for _ in 0..THREADS {
             s.spawn(|| {
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(ITEMS as f64, 1.03).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(ITEMS as u64, 1.03).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -267,8 +268,8 @@ fn main() {
     thread::scope(|s| {
         for _ in 0..THREADS {
             s.spawn(|| {
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(ITEMS as f64, 1.03).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(ITEMS as u64, 1.03).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -303,8 +304,8 @@ fn main() {
         for _ in 0..THREADS {
             s.spawn(|| {
                 let mut miss_count = 0;
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(items as f64, ZIPF_EXP).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(items as u64, ZIPF_EXP).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -337,8 +338,8 @@ fn main() {
         for _ in 0..THREADS {
             s.spawn(|| {
                 let mut miss_count = 0;
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(items as f64, ZIPF_EXP).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(items as u64, ZIPF_EXP).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -370,8 +371,8 @@ fn main() {
         for _ in 0..THREADS {
             s.spawn(|| {
                 let mut miss_count = 0;
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(items as f64, ZIPF_EXP).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(items as u64, ZIPF_EXP).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -403,8 +404,8 @@ fn main() {
         for _ in 0..THREADS {
             s.spawn(|| {
                 let mut miss_count = 0;
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(items as f64, ZIPF_EXP).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(items as u64, ZIPF_EXP).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {
@@ -437,8 +438,8 @@ fn main() {
         for _ in 0..THREADS {
             s.spawn(|| {
                 let mut miss_count = 0;
-                let mut rng = rand::rng();
-                let zipf = rand_distr::Zipf::new(items as f64, ZIPF_EXP).unwrap();
+                let mut rng = rand::thread_rng();
+                let zipf = rand_distr::Zipf::new(items as u64, ZIPF_EXP).unwrap();
                 wg.wait();
                 let before = Instant::now();
                 for _ in 0..ITERATIONS {

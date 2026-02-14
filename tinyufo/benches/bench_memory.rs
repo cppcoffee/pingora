@@ -16,6 +16,7 @@
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 use rand::prelude::*;
+use rand_distr::Distribution;
 use std::num::NonZeroUsize;
 
 const ITERATIONS: usize = 5_000_000;
@@ -24,8 +25,12 @@ fn bench_lru(zip_exp: f64, items: usize, cache_size_percent: f32) {
     let cache_size = (cache_size_percent * items as f32).round() as usize;
     let mut lru = lru::LruCache::<u64, ()>::new(NonZeroUsize::new(cache_size).unwrap());
 
-    let mut rng = rand::rng();
-    let zipf = rand_distr::Zipf::new(items as f64, zip_exp).unwrap();
+    let mut rng = rand::thread_rng();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
 
     for _ in 0..ITERATIONS {
         let key = zipf.sample(&mut rng) as u64;
@@ -40,8 +45,8 @@ fn bench_moka(zip_exp: f64, items: usize, cache_size_percent: f32) {
     let cache_size = (cache_size_percent * items as f32).round() as usize;
     let moka = moka::sync::Cache::new(cache_size as u64);
 
-    let mut rng = rand::rng();
-    let zipf = rand_distr::Zipf::new(items as f64, zip_exp).unwrap();
+    let mut rng = rand::thread_rng();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
 
     for _ in 0..ITERATIONS {
         let key = zipf.sample(&mut rng) as u64;
@@ -56,8 +61,8 @@ fn bench_quick_cache(zip_exp: f64, items: usize, cache_size_percent: f32) {
     let cache_size = (cache_size_percent * items as f32).round() as usize;
     let quick_cache = quick_cache::sync::Cache::new(cache_size);
 
-    let mut rng = rand::rng();
-    let zipf = rand_distr::Zipf::new(items as f64, zip_exp).unwrap();
+    let mut rng = rand::thread_rng();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
 
     for _ in 0..ITERATIONS {
         let key = zipf.sample(&mut rng) as u64;
@@ -72,8 +77,8 @@ fn bench_tinyufo(zip_exp: f64, items: usize, cache_size_percent: f32) {
     let cache_size = (cache_size_percent * items as f32).round() as usize;
     let tinyufo = tinyufo::TinyUfo::new(cache_size, (cache_size as f32 * 1.0) as usize);
 
-    let mut rng = rand::rng();
-    let zipf = rand_distr::Zipf::new(items as f64, zip_exp).unwrap();
+    let mut rng = rand::thread_rng();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
 
     for _ in 0..ITERATIONS {
         let key = zipf.sample(&mut rng) as u64;
@@ -88,8 +93,8 @@ fn bench_tinyufo_compact(zip_exp: f64, items: usize, cache_size_percent: f32) {
     let cache_size = (cache_size_percent * items as f32).round() as usize;
     let tinyufo = tinyufo::TinyUfo::new_compact(cache_size, (cache_size as f32 * 1.0) as usize);
 
-    let mut rng = rand::rng();
-    let zipf = rand_distr::Zipf::new(items as f64, zip_exp).unwrap();
+    let mut rng = rand::thread_rng();
+    let zipf = rand_distr::Zipf::new(items as u64, zip_exp).unwrap();
 
     for _ in 0..ITERATIONS {
         let key = zipf.sample(&mut rng) as u64;
