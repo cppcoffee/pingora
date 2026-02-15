@@ -242,7 +242,11 @@ impl Connector {
         &self,
         peer: &P,
     ) -> Result<HttpSession> {
-        let stream = self.transport.new_stream(peer).await?;
+        let reuse_hash = peer.reuse_hash();
+        let stream = self
+            .transport
+            .new_stream_with_hash(peer, reuse_hash)
+            .await?;
 
         // check alpn
         match stream.selected_alpn_proto() {
@@ -272,7 +276,7 @@ impl Connector {
             .await?
             .expect("newly created connections should have at least one free stream");
         if conn.more_streams_allowed() {
-            self.in_use_pool.insert(peer.reuse_hash(), conn);
+            self.in_use_pool.insert(reuse_hash, conn);
         }
         Ok(HttpSession::H2(h2_stream))
     }
