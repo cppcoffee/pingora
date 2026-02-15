@@ -37,7 +37,7 @@ async-trait = { workspace = true }
 parking_lot = "0.12"
 cf-rustracing = "1.0"
 cf-rustracing-jaeger = "1.0"
-rmp = "0.8"
+rmp = "=0.8.14"
 tokio = { workspace = true }
 lru = { workspace = true }
 ahash = { workspace = true }
