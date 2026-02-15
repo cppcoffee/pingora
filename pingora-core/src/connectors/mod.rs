@@ -176,10 +176,7 @@ impl TransportConnector {
         peer: &P,
         reuse_hash: u64,
     ) -> Result<Stream> {
-        let rt = self
-            .offload
-            .as_ref()
-            .map(|o| o.get_runtime(reuse_hash));
+        let rt = self.offload.as_ref().map(|o| o.get_runtime(reuse_hash));
         let bind_to = l4::bind_to_random(peer, &self.bind_to_v4, &self.bind_to_v6);
         let alpn_override = self.preferred_http_version.get_with_key(reuse_hash);
         let stream = if let Some(rt) = rt {
@@ -591,8 +588,12 @@ mod tests {
         fn address(&self) -> &crate::protocols::l4::socket::SocketAddr {
             &self.addr
         }
-        fn tls(&self) -> bool { false }
-        fn sni(&self) -> &str { "" }
+        fn tls(&self) -> bool {
+            false
+        }
+        fn sni(&self) -> &str {
+            ""
+        }
         fn reuse_hash(&self) -> u64 {
             self.count.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             0

@@ -243,7 +243,10 @@ impl Connector {
         peer: &P,
     ) -> Result<HttpSession> {
         let reuse_hash = peer.reuse_hash();
-        let stream = self.transport.new_stream_with_hash(peer, reuse_hash).await?;
+        let stream = self
+            .transport
+            .new_stream_with_hash(peer, reuse_hash)
+            .await?;
 
         // check alpn
         match stream.selected_alpn_proto() {
