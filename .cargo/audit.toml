@@ -4,4 +4,7 @@ ignore = [
     # We don't use the protobuf encoder, only the text one.
     # https://rustsec.org/advisories/RUSTSEC-2024-0437
     "RUSTSEC-2024-0437",
+    # Pingora MadeYouReset HTTP/2 vulnerability in the current version.
+    # We are working on the repository itself, so we suppress this until the version bump.
+    "RUSTSEC-2025-0070",
 ]
