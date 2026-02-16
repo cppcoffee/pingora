@@ -168,12 +168,17 @@ impl TransportConnector {
     ///
     /// No connection is reused.
     pub async fn new_stream<P: Peer + Send + Sync + 'static>(&self, peer: &P) -> Result<Stream> {
-        let rt = self
-            .offload
-            .as_ref()
-            .map(|o| o.get_runtime(peer.reuse_hash()));
+        self.new_stream_with_hash(peer, peer.reuse_hash()).await
+    }
+
+    async fn new_stream_with_hash<P: Peer + Send + Sync + 'static>(
+        &self,
+        peer: &P,
+        reuse_hash: u64,
+    ) -> Result<Stream> {
+        let rt = self.offload.as_ref().map(|o| o.get_runtime(reuse_hash));
         let bind_to = l4::bind_to_random(peer, &self.bind_to_v4, &self.bind_to_v6);
-        let alpn_override = self.preferred_http_version.get(peer);
+        let alpn_override = self.preferred_http_version.get_with_hash(reuse_hash);
         let stream = if let Some(rt) = rt {
             let peer = peer.clone();
             let tls_ctx = self.tls_ctx.clone();
@@ -189,7 +194,15 @@ impl TransportConnector {
 
     /// Try to find a reusable connection to the given server [Peer]
     pub async fn reused_stream<P: Peer + Send + Sync>(&self, peer: &P) -> Option<Stream> {
-        match self.connection_pool.get(&peer.reuse_hash()) {
+        self.reused_stream_with_hash(peer, peer.reuse_hash()).await
+    }
+
+    async fn reused_stream_with_hash<P: Peer + Send + Sync>(
+        &self,
+        peer: &P,
+        reuse_hash: u64,
+    ) -> Option<Stream> {
+        match self.connection_pool.get(&reuse_hash) {
             Some(s) => {
                 debug!("find reusable stream, trying to acquire it");
                 {
@@ -277,11 +290,12 @@ impl TransportConnector {
         &self,
         peer: &P,
     ) -> Result<(Stream, bool)> {
-        let reused_stream = self.reused_stream(peer).await;
+        let reuse_hash = peer.reuse_hash();
+        let reused_stream = self.reused_stream_with_hash(peer, reuse_hash).await;
         if let Some(s) = reused_stream {
             Ok((s, true))
         } else {
-            let s = self.new_stream(peer).await?;
+            let s = self.new_stream_with_hash(peer, reuse_hash).await?;
             Ok((s, false))
         }
     }
@@ -347,13 +361,19 @@ impl PreferredHttpVersion {
     }
 
     pub fn add(&self, peer: &impl Peer, version: u8) {
-        let key = peer.reuse_hash();
+        self.add_with_hash(peer.reuse_hash(), version)
+    }
+
+    pub fn add_with_hash(&self, key: u64, version: u8) {
         let mut v = self.versions.write();
         v.insert(key, version);
     }
 
     pub fn get(&self, peer: &impl Peer) -> Option<ALPN> {
-        let key = peer.reuse_hash();
+        self.get_with_hash(peer.reuse_hash())
+    }
+
+    pub fn get_with_hash(&self, key: u64) -> Option<ALPN> {
         let v = self.versions.read();
         v.get(&key)
             .copied()
@@ -542,5 +562,84 @@ mod tests {
         let peer = BasicPeer::new(BLACK_HOLE);
         let (etype, context) = get_do_connect_failure_with_peer(&peer).await;
         assert!(etype != ConnectTimedout || !context.contains("total-connection timeout"));
+    }
+
+    #[tokio::test]
+    async fn test_reuse_hash_calls() {
+        use crate::connectors::l4::Connect as L4Connect;
+        use crate::protocols::l4::socket::SocketAddr as L4SocketAddr;
+        use crate::protocols::l4::stream::Stream as L4Stream;
+        use crate::upstreams::peer::PeerOptions;
+        use async_trait::async_trait;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        #[derive(Debug, Clone)]
+        struct MockPeer {
+            reuse_hash_calls: Arc<AtomicUsize>,
+            options: PeerOptions,
+        }
+
+        impl std::fmt::Display for MockPeer {
+            fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                write!(f, "MockPeer")
+            }
+        }
+
+        impl Peer for MockPeer {
+            fn address(&self) -> &L4SocketAddr {
+                // Dummy address, wont be used by MockL4
+                static ADDR: std::sync::OnceLock<L4SocketAddr> = std::sync::OnceLock::new();
+                ADDR.get_or_init(|| L4SocketAddr::Inet("1.1.1.1:80".parse().unwrap()))
+            }
+            fn tls(&self) -> bool {
+                false
+            }
+            fn sni(&self) -> &str {
+                ""
+            }
+            fn reuse_hash(&self) -> u64 {
+                self.reuse_hash_calls.fetch_add(1, Ordering::SeqCst);
+                12345
+            }
+            fn get_peer_options(&self) -> Option<&PeerOptions> {
+                Some(&self.options)
+            }
+        }
+
+        #[derive(Debug)]
+        struct MockL4;
+
+        #[async_trait]
+        impl L4Connect for MockL4 {
+            async fn connect(&self, _addr: &L4SocketAddr) -> Result<L4Stream> {
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let addr = listener.local_addr().unwrap();
+
+                tokio::spawn(async move {
+                    if let Ok((mut stream, _)) = listener.accept().await {
+                        let _ = stream.write_all(b"HTTP/1.1 200 OK\r\n\r\n").await;
+                    }
+                });
+
+                tokio::net::TcpStream::connect(addr)
+                    .await
+                    .map(|s| s.into())
+                    .or_fail()
+            }
+        }
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let mut peer = MockPeer {
+            reuse_hash_calls: calls.clone(),
+            options: PeerOptions::new(),
+        };
+        peer.options.custom_l4 = Some(Arc::new(MockL4));
+
+        let connector = TransportConnector::new(None);
+        let _ = connector.get_stream(&peer).await.unwrap();
+
+        let count = calls.load(Ordering::SeqCst);
+        println!("reuse_hash called {} times", count);
+        assert_eq!(count, 1, "reuse_hash should be called exactly once");
     }
 }
